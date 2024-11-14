@@ -5,42 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Disc Realms Network CDN</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.10/marked.min.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #1e1e1e;
-            color: #cfcfcf;
+            font-family: Arial, sans-serif; background-color: #1e1e1e; color: #cfcfcf;
         }
         .file-tree { list-style-type: none; padding-left: 20px; }
-        .file, .folder {
-            cursor: pointer;
-            margin: 5px 0;
-            padding: 3px;
-        }
-        .folder::before { content: "▶ "; transition: transform 0.3s; }
-        .folder.open::before { content: "▼ "; }
-        .file-tree ul { list-style-type: none; padding-left: 20px; display: none; transition: max-height 0.3s ease; }
+        .file, .folder { cursor: pointer; margin: 5px 0; padding: 3px; }
+        .folder::before { content: "→ "; transition: transform 0.3s; }
+        .folder.open::before { content: "↓ "; }
+        .file-tree ul { list-style-type: none; padding-left: 20px; display: none; }
         .file-tree ul.show { display: block; }
         .file-viewer {
-            background-color: #2d2d2d;
-            border: 1px solid #444;
-            padding: 10px;
-            margin-top: 10px;
-            max-height: 400px;
-            overflow: auto;
-            color: #cfcfcf;
+            background-color: #2d2d2d; border: 1px solid #444; padding: 10px; margin-top: 10px;
+            max-height: 4000px; overflow: auto; color: #cfcfcf;
         }
-        img { max-width: 100%; max-height: 400px; }
+        img, video { max-width: 100%; max-height: 400px; }
         pre { margin: 0; }
     </style>
 </head>
 <body>
-<h1>Disc Realms Network CDN File Tree</h1>
-<ul id="file-tree" class="file-tree"></ul>
-<div id="file-viewer" class="file-viewer hidden">Select a file to view its contents</div>
+<div class="main-container">
+    <h1>Disc Realms Network CDN File Tree</h1>
+    <ul id="file-tree" class="file-tree"></ul>
+    <div id="file-viewer" class="file-viewer hidden">Select a file to view its contents</div>
+</div>
+<div class="scrollbar-track"><div class="scrollbar-handle"></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script>
+    const mainContainer = document.querySelector('.main-container');
+    const scrollbarHandle = document.querySelector('.scrollbar-handle');
+
+    mainContainer.addEventListener('scroll', () => {
+        const scrollPercentage = mainContainer.scrollTop / (mainContainer.scrollHeight - mainContainer.clientHeight);
+        scrollbarHandle.style.top = `${scrollPercentage * 100}%`;
+    });
+
     async function fetchRepoContents(path = '') {
         const url = `https://api.github.com/repos/Disc-Realms-Network/cdn/contents/${path}`;
         const response = await fetch(url);
@@ -59,14 +60,18 @@
                 const nestedList = document.createElement('ul');
                 nestedList.classList.add('file-tree');
                 listItem.appendChild(nestedList);
-                listItem.onclick = () => {
+                listItem.onclick = (e) => {
+                    e.stopPropagation();
                     listItem.classList.toggle('open');
                     nestedList.classList.toggle('show');
                     if (!nestedList.hasChildNodes()) createFileTree(nestedList, file.path);
                 };
             } else {
                 listItem.classList.add('file');
-                listItem.onclick = async () => viewFileContent(file);
+                listItem.onclick = async (e) => {
+                    e.stopPropagation();
+                    await viewFileContent(file);
+                };
             }
             element.appendChild(listItem);
         });
@@ -83,6 +88,13 @@
             const img = document.createElement('img');
             img.src = url;
             viewer.appendChild(img);
+        } else if (file.name.match(/\.(mp4|webm|ogg)$/i)) {
+            const video = document.createElement('video');
+            video.controls = true;
+            video.src = url;
+            viewer.appendChild(video);
+        } else if (file.name.endsWith('.md')) {
+            viewer.innerHTML = marked.parse(content);
         } else {
             const pre = document.createElement('pre');
             pre.classList.add('language-' + getLanguage(file.name));
@@ -96,12 +108,8 @@
     function getLanguage(filename) {
         const extension = filename.split('.').pop();
         return {
-            'js': 'javascript',
-            'html': 'markup',
-            'css': 'css',
-            'md': 'markdown',
-            'json': 'json',
-            'yml': 'yaml'
+            'js': 'javascript', 'html': 'markup', 'css': 'css',
+            'md': 'markdown', 'json': 'json', 'yml': 'yaml'
         }[extension] || 'plaintext';
     }
 
