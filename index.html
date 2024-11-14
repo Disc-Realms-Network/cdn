@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disc Realms Network CDN</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet"/>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: #cfcfcf;
+        }
+        .file-tree { list-style-type: none; padding-left: 20px; }
+        .file, .folder {
+            cursor: pointer;
+            margin: 5px 0;
+            padding: 3px;
+        }
+        .folder::before { content: "▶ "; transition: transform 0.3s; }
+        .folder.open::before { content: "▼ "; }
+        .file-tree ul { list-style-type: none; padding-left: 20px; display: none; transition: max-height 0.3s ease; }
+        .file-tree ul.show { display: block; }
+        .file-viewer {
+            background-color: #2d2d2d;
+            border: 1px solid #444;
+            padding: 10px;
+            margin-top: 10px;
+            max-height: 400px;
+            overflow: auto;
+            color: #cfcfcf;
+        }
+        img { max-width: 100%; max-height: 400px; }
+        pre { margin: 0; }
+    </style>
+</head>
+<body>
+<h1>Disc Realms Network CDN File Tree</h1>
+<ul id="file-tree" class="file-tree"></ul>
+<div id="file-viewer" class="file-viewer hidden">Select a file to view its contents</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script>
+    async function fetchRepoContents(path = '') {
+        const url = `https://api.github.com/repos/Disc-Realms-Network/cdn/contents/${path}`;
+        const response = await fetch(url);
+        return await response.json();
+    }
+
+    async function createFileTree(element, path = '') {
+        const files = await fetchRepoContents(path);
+        files.forEach(file => {
+            const listItem = document.createElement('li');
+            listItem.classList.add(file.type);
+            listItem.textContent = file.name;
+
+            if (file.type === 'dir') {
+                listItem.classList.add('folder');
+                const nestedList = document.createElement('ul');
+                nestedList.classList.add('file-tree');
+                listItem.appendChild(nestedList);
+                listItem.onclick = () => {
+                    listItem.classList.toggle('open');
+                    nestedList.classList.toggle('show');
+                    if (!nestedList.hasChildNodes()) createFileTree(nestedList, file.path);
+                };
+            } else {
+                listItem.classList.add('file');
+                listItem.onclick = async () => viewFileContent(file);
+            }
+            element.appendChild(listItem);
+        });
+    }
+
+    async function viewFileContent(file) {
+        const viewer = document.getElementById('file-viewer');
+        const url = `https://raw.githubusercontent.com/Disc-Realms-Network/cdn/main/${file.path}`;
+        const response = await fetch(url);
+        const content = await response.text();
+
+        viewer.innerHTML = '';
+        if (file.name.match(/\.(jpg|jpeg|png|gif|svg)$/i)) {
+            const img = document.createElement('img');
+            img.src = url;
+            viewer.appendChild(img);
+        } else {
+            const pre = document.createElement('pre');
+            pre.classList.add('language-' + getLanguage(file.name));
+            pre.textContent = content;
+            viewer.appendChild(pre);
+            Prism.highlightElement(pre);
+        }
+        viewer.classList.remove('hidden');
+    }
+
+    function getLanguage(filename) {
+        const extension = filename.split('.').pop();
+        return {
+            'js': 'javascript',
+            'html': 'markup',
+            'css': 'css',
+            'md': 'markdown',
+            'json': 'json',
+            'yml': 'yaml'
+        }[extension] || 'plaintext';
+    }
+
+    createFileTree(document.getElementById('file-tree'));
+</script>
+</body>
+</html>
